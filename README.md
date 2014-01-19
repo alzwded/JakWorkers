@@ -165,3 +165,4 @@ Blocking situations
 | `jw_main` | `lock jw_jobQueue` | calls to add_job end; wait |
 | `jw_main` | queue is empty && !EXIT_WHEN_ALL_JOBS_COMPLETE | call to add_job |
 | `jw_worker` | `pthread_cond_wait` | fw dispatches a job |
+| `jw_exit` | `pthread_mutex_lock` ; exit is called from another thread but main thread is waiting for jobAdded condition | main thread unlocks queue if it notices exit was called in order to allow exit to finish, then waits for exit to finish before cleaning up everything |

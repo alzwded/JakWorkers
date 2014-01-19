@@ -55,7 +55,6 @@ static pthread_cond_t jw_jobAdded;
 static worker_t* jw_workers = NULL;
 static sem_t jw_workersSem;
 
-static pthread_t jw_mainTid;
 static jw_config_t jw_config;
 static sig_atomic_t jw_exit_called;
 static short jw_exit_code;

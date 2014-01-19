@@ -83,8 +83,13 @@ static void* jw_worker(void* data)
 
 static void jw_cleanup()
 {
-    queue_t* q = jw_jobQueue;
+    queue_t* q;
     size_t i;
+
+    while(jw_exit_called < 2) pthread_yield();
+    pthread_mutex_lock(&jw_jobQueue_lock);
+
+    q = jw_jobQueue;
 
     while(q) {
         queue_t* nq = q->next;
@@ -165,8 +170,6 @@ short jw_main()
         }
     }
 
-    while(jw_exit_called < 2) pthread_yield();
-    pthread_mutex_lock(&jw_jobQueue_lock);
     jw_cleanup();
 
     return jw_exit_code;

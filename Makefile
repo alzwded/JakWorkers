@@ -2,7 +2,7 @@ CC = gcc
 COPTS = -c -fPIC -g
 LD = gcc
 LDOPTS = -shared -lpthread
-LIBNAME = jw.so
+LIBNAME = libjw.so
 VERSION = 0.1
 
 $(LIBNAME): jw.o
@@ -20,4 +20,11 @@ jw.o: JakWorkers.c JakWorkers.h
 	$(CC) $(COPTS) -o jw.o JakWorkers.c
 
 clean:
-	rm -rf *.o $(LIBNAME) dist/ jw-*.tbz
+	rm -rf *.o $(LIBNAME) dist/ jw-*.tbz test_*.bin
+
+test_farray.bin: test/test_farray.c $(LIBNAME)
+	gcc -g -o test_farray.bin test/test_farray.c -l:$(LIBNAME) -lm -Wl,-rpath=.
+
+.PHONY: all_tests
+all_tests: test_farray.bin
+	./test_farray.bin

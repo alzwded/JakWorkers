@@ -20,3 +20,4 @@
 # Dists
 dist
 *.tbz
+test_*.bin

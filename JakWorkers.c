@@ -26,8 +26,8 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <stdio.h>
+#include <signal.h>
 
 // typedefs
 typedef struct {
@@ -62,19 +62,20 @@ static int jw_exit_code;
 // internal functions
 static void* jw_worker(void* data)
 {
-    worker_t myJob = *((worker_t*)data);
+    worker_t* myJob = ((worker_t*)data);
 
-    pthread_mutex_lock(&myJob.job_condMutex);
+    pthread_mutex_lock(&myJob->job_condMutex);
     for(;;) {
-        while(!myJob.job->func)
-            pthread_cond_wait(&myJob.job_cond, &myJob.job_condMutex);
-        pthread_mutex_unlock(&myJob.job_condMutex);
+        while(!myJob->job->func) {
+            pthread_cond_wait(&myJob->job_cond, &myJob->job_condMutex);
+        }
+        pthread_mutex_unlock(&myJob->job_condMutex);
 
-        myJob.job->func(myJob.job->data);
-        myJob.job->func = NULL;
-        myJob.job->data = NULL;
+        myJob->job->func(myJob->job->data);
+        myJob->job->func = NULL;
+        myJob->job->data = NULL;
 
-        pthread_mutex_lock(&myJob.job_condMutex);
+        pthread_mutex_lock(&myJob->job_condMutex);
         sem_post(&jw_workersSem);
     }
 
@@ -98,7 +99,7 @@ static void jw_cleanup()
     }
 
     for(i = 0; i < jw_config.numWorkers; ++i) {
-        pthread_kill(jw_workers[i].tid, SIGKILL);
+        pthread_cancel(jw_workers[i].tid);
         free(jw_workers[i].job);
         pthread_mutex_destroy(&jw_workers[i].job_condMutex);
         pthread_cond_destroy(&jw_workers[i].job_cond);
@@ -120,8 +121,6 @@ int jw_main()
         job_t job;
         queue_t* q;
         size_t i;
-
-        sem_wait(&jw_workersSem);
 
         if(jw_exit_called) break;
 
@@ -152,12 +151,18 @@ int jw_main()
                 }
             }
         }
+        if(jw_exit_called) {
+            pthread_mutex_unlock(&jw_jobQueue_lock);
+            break;
+        }
         job = jw_jobQueue->job;
         q = jw_jobQueue;
         jw_jobQueue = jw_jobQueue->next;
         pthread_mutex_unlock(&jw_jobQueue_lock);
 
         free(q);
+
+        sem_wait(&jw_workersSem);
 
         for(i = 0; i < jw_config.numWorkers; ++i) {
             if(!jw_workers[i].job->func) {
@@ -191,6 +196,8 @@ int jw_init(jw_config_t const config)
 
     for(i = 0; i < config.numWorkers; ++i) {
         jw_workers[i].job = (job_t*)malloc(sizeof(job_t));
+        jw_workers[i].job->func = NULL;
+        jw_workers[i].job->data = NULL;
         pthread_mutex_init(&jw_workers[i].job_condMutex, NULL);
         pthread_cond_init(&jw_workers[i].job_cond, NULL);
         pthread_create(&jw_workers[i].tid,

@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
     tMulti = difftime(stopMulti, startMulti);
 
     printf("==========================\n");
-    printf("multi test: %gs\n", tMulti);
+    printf("multi-thread test: %gs\n", tMulti);
     printf("==========================\n");
 
     generateArray();
@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
     tSingle = difftime(stopSingle, startSingle);
 
     printf("==========================\n");
-    printf("single test: %gs\n", tSingle);
+    printf("single-thread test: %gs\n", tSingle);
     printf("==========================\n");
 
     printf("multi vs. single: %gs, increase: %g\n", tSingle - tMulti, tSingle / tMulti);

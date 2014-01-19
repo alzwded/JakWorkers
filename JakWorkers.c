@@ -126,7 +126,7 @@ int jw_main()
 
         pthread_mutex_lock(&jw_jobQueue_lock);
         if(!jw_config.EXIT_WHEN_ALL_JOBS_COMPLETE) {
-            while(!jw_jobQueue)
+            while(!jw_jobQueue && !jw_exit_called)
                 pthread_cond_wait(&jw_jobAdded, &jw_jobQueue_lock);
             if(jw_exit_called) {
                 pthread_mutex_unlock(&jw_jobQueue_lock);

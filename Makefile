@@ -25,6 +25,10 @@ clean:
 test_farray.bin: test/test_farray.c $(LIBNAME)
 	gcc -g -o test_farray.bin test/test_farray.c -l:$(LIBNAME) -lm -Wl,-rpath=.
 
+test_interactive.bin: test/test_interactive.c $(LIBNAME)
+	gcc -g -o test_interactive.bin test/test_interactive.c -l:$(LIBNAME) -lm -Wl,-rpath=.
+
 .PHONY: all_tests
-all_tests: test_farray.bin
+all_tests: test_farray.bin test_interactive.bin
 	./test_farray.bin
+	test/test_interactive_launcher.sh

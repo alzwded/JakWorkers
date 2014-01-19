@@ -23,7 +23,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "JakWorkers.h"
-#include <pthreads.h>
+#include <pthread.h>
 #include <semaphore.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -61,19 +61,19 @@ static short jw_exit_code;
 // internal functions
 static void* jw_worker(void* data)
 {
-    job_t* myJob = (job_t*)data;
+    worker_t myJob = *((worker_t*)data);
 
-    pthread_mutex_lock(myJob->job_condMutex);
+    pthread_mutex_lock(&myJob.job_condMutex);
     for(;;) {
-        while(!myJob->job->func)
-            pthread_cond_wait(&myJob->job_cond, &myJob->job_condMutex);
-        pthread_mutex_unlock(myJob->job_condMutex);
+        while(!myJob.job->func)
+            pthread_cond_wait(&myJob.job_cond, &myJob.job_condMutex);
+        pthread_mutex_unlock(&myJob.job_condMutex);
 
-        myJob->job->func(myJob->job->data);
-        myJob->job->func = NULL;
-        myJob->job->data = NULL;
+        myJob.job->func(myJob.job->data);
+        myJob.job->func = NULL;
+        myJob.job->data = NULL;
 
-        pthread_mutex_lock(myJob->job_condMutex);
+        pthread_mutex_lock(&myJob.job_condMutex);
         sem_post(&jw_workersSem);
     }
 
@@ -86,7 +86,7 @@ static void jw_cleanup()
     size_t i;
 
     while(q) {
-        queue_t nq = q->next;
+        queue_t* nq = q->next;
         free(q);
         q = nq;
     }
@@ -112,7 +112,7 @@ short jw_main()
 {
     for(;!jw_exit_called;) {
         job_t job;
-        queue_t q;
+        queue_t* q;
         size_t i;
 
         sem_wait(&jw_workersSem);
@@ -122,7 +122,7 @@ short jw_main()
         pthread_mutex_lock(&jw_jobQueue_lock);
         if(!jw_config.EXIT_WHEN_ALL_JOBS_COMPLETE) {
             while(!jw_jobQueue)
-                pthread_cond_wait(&jw_jobAdded, &jw_jobQueue);
+                pthread_cond_wait(&jw_jobAdded, &jw_jobQueue_lock);
             if(jw_exit_called) break;
         } else {
             if(!jw_jobQueue) {
@@ -150,7 +150,7 @@ short jw_main()
     }
 
     while(jw_exit_called < 2) pthread_yield();
-    pthread_mutex_lock(jw_jobQueue_lock);
+    pthread_mutex_lock(&jw_jobQueue_lock);
     jw_cleanup();
 
     return jw_exit_code;
@@ -164,11 +164,10 @@ short jw_init(jw_config_t const config)
 
     jw_config = config;
     jw_jobQueue = NULL;
-    jw_workers = (worker_t*)calloc(sizeof(worker_t) * config.numWorkers);
+    jw_workers = (worker_t*)calloc(config.numWorkers, sizeof(worker_t));
 
     sem_init(&jw_workersSem, 0, config.numWorkers);
     pthread_mutex_init(&jw_jobQueue_lock, NULL);
-    pthread_mutex_init(&jw_jobAddedMutex, NULL);
     pthread_cond_init(&jw_jobAdded, NULL);
 
     for(i = 0; i < config.numWorkers; ++i) {
@@ -178,7 +177,7 @@ short jw_init(jw_config_t const config)
         pthread_create(&jw_workers[i].tid,
                 NULL,
                 &jw_worker,
-                jw_workers[i].job);
+                &jw_workers[i]);
     }
 }
 

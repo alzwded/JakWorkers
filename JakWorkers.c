@@ -178,8 +178,6 @@ short jw_init(jw_config_t const config)
 
     jw_exit_called = 0;
 
-    jw_mainTid = pthread_self();
-
     jw_config = config;
     jw_jobQueue = NULL;
     jw_workers = (worker_t*)calloc(config.numWorkers, sizeof(worker_t));

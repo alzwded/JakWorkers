@@ -91,7 +91,7 @@ jw_exit(int retCode); // clean up resources, call jw_exit_ret_code
 
 jw_main(int const numWorkers)
 {
-    ////BOOL no_jobs = FALSE;
+    init jw_queueSem to numWorkers;
 
     // init threads
     for(int i = 0; i < numWorkers; ++i) {
@@ -100,17 +100,6 @@ jw_main(int const numWorkers)
     }
 
     for(;;) {
-        ////// check if there are jobs in the queue
-        ////lock jw_jobQueue;
-        ////if(jw_jobQueue is empty) pthread_cond_wait(jw_jobAdded);
-        ////release jw_jobQueue;
-
-        ////if(no_jobs) {
-        ////    no_jobs = FALSE;
-        ////    pthread_cond_timedwait(jw_jobAdded, 500ms);
-        ////    continue;
-        ////}
-
         sem_wait(jw_queueSem);
 
         lock jw_jobQueue;

@@ -127,6 +127,12 @@ short jw_main()
             if(jw_exit_called) break;
         } else {
             if(!jw_jobQueue) {
+                for(;;) {
+                    int value = -1;
+                    sem_getvalue(&jw_workersSem, &value);
+                    if(value >= config.numWorkers) break;
+                    pthread_yield();
+                }
                 jw_exit(0);
                 pthread_mutex_unlock(&jw_jobQueue_lock);
                 break;

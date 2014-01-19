@@ -55,6 +55,7 @@ static pthread_cond_t jw_jobAdded;
 static worker_t* jw_workers = NULL;
 static sem_t jw_workersSem;
 
+static pthread_t jw_mainTid;
 static jw_config_t jw_config;
 static sig_atomic_t jw_exit_called;
 static short jw_exit_code;
@@ -124,18 +125,27 @@ short jw_main()
         if(!jw_config.EXIT_WHEN_ALL_JOBS_COMPLETE) {
             while(!jw_jobQueue)
                 pthread_cond_wait(&jw_jobAdded, &jw_jobQueue_lock);
-            if(jw_exit_called) break;
-        } else {
-            if(!jw_jobQueue) {
-                for(;;) {
-                    int value = -1;
-                    sem_getvalue(&jw_workersSem, &value);
-                    if(value >= config.numWorkers) break;
-                    pthread_yield();
-                }
-                jw_exit(0);
+            if(jw_exit_called) {
                 pthread_mutex_unlock(&jw_jobQueue_lock);
                 break;
+            }
+        } else {
+            if(!jw_jobQueue) {
+                int value = -1;
+                sem_getvalue(&jw_workersSem, &value);
+                if(value >= jw_config.numWorkers) {
+                    pthread_mutex_unlock(&jw_jobQueue_lock);
+                    jw_exit_code = 0;
+                    jw_exit_called = 2;
+                    break;
+                } else {
+                    // don't pthread_cond_wait here because there
+                    // might be no one to add new tasks ever
+                    pthread_mutex_unlock(&jw_jobQueue_lock);
+                    // let workers do their work, then continue from the top
+                    pthread_yield();
+                    continue;
+                }
             }
         }
         job = jw_jobQueue->job;
@@ -169,6 +179,8 @@ short jw_init(jw_config_t const config)
 
     jw_exit_called = 0;
 
+    jw_mainTid = pthread_self();
+
     jw_config = config;
     jw_jobQueue = NULL;
     jw_workers = (worker_t*)calloc(config.numWorkers, sizeof(worker_t));
@@ -201,7 +213,11 @@ short jw_add_job(jw_job_func_t func, void* data)
     status = pthread_mutex_lock(&jw_jobQueue_lock);
     if(status) {
         fprintf(stderr, "The JW framework is not running: %d\n", status);
-        abort();
+        return 1;
+    }
+    if(jw_exit_called) {
+        fprintf(stderr, "The JW framework was closed while adding this task: %d\n", status);
+        return 1;
     }
     if(!jw_jobQueue) {
         ADD_TO_QUEUE(jw_jobQueue);
@@ -212,13 +228,14 @@ short jw_add_job(jw_job_func_t func, void* data)
     }
     pthread_cond_signal(&jw_jobAdded);
     pthread_mutex_unlock(&jw_jobQueue_lock);
+    return 0;
 }
 
 short jw_exit(short code)
 {
-    jw_exit_code = code;
-
     jw_exit_called++;
+
+    jw_exit_code = code;
 
     // wake up main thread if it was sleeping
     // on account of all workers being busy

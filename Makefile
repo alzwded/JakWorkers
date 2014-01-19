@@ -20,4 +20,4 @@ jw.o: JakWorkers.c JakWorkers.h
 	$(CC) $(COPTS) -o jw.o JakWorkers.c
 
 clean:
-	rm -rf *.o $(LIBNAME) dist/
+	rm -rf *.o $(LIBNAME) dist/ jw-*.tbz

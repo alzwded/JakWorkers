@@ -162,7 +162,7 @@ Blocking situations
 |-------|------|----------------------------|
 | `jw_job_add` | other call to `jw_job_add`, framework's currently dispatching a job | wait |
 | `jw_main` | `sem_take(jw_queueSem)` | a worker returns itself to the pool |
-| `jw_main` | `lock jw_jobQueue` | calls to add_job end; wait |
+| `jw_main` | `lock jw_jobQueue` | calls to add_job end; call to `jw_exit` from another thread; wait |
 | `jw_main` | queue is empty && !EXIT_WHEN_ALL_JOBS_COMPLETE | call to add_job |
 | `jw_worker` | `pthread_cond_wait` | fw dispatches a job |
-| `jw_exit` | `pthread_mutex_lock` ; exit is called from another thread but main thread is waiting for jobAdded condition | main thread unlocks queue if it notices exit was called in order to allow exit to finish, then waits for exit to finish before cleaning up everything |
+| `jw_exit` | `pthread_mutex_lock` ; exit is called from another thread but main thread is NOT waiting for jobAdded condition, but it has the queue locked anyway | main thread unlocks queue if it notices exit was called in order to allow exit to finish, then waits for exit to finish before cleaning up everything |

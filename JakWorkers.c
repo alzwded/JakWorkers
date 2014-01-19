@@ -57,7 +57,7 @@ static sem_t jw_workersSem;
 
 static jw_config_t jw_config;
 static sig_atomic_t jw_exit_called;
-static short jw_exit_code;
+static int jw_exit_code;
 
 // internal functions
 static void* jw_worker(void* data)
@@ -114,7 +114,7 @@ static void jw_cleanup()
 }
 
 // entry points
-short jw_main()
+int jw_main()
 {
     for(;!jw_exit_called;) {
         job_t job;
@@ -175,7 +175,7 @@ short jw_main()
     return jw_exit_code;
 }
 
-short jw_init(jw_config_t const config)
+int jw_init(jw_config_t const config)
 {
     size_t i;
 
@@ -206,7 +206,7 @@ short jw_init(jw_config_t const config)
     Q->job.func = func; \
     Q->job.data = data; \
 }while(0)
-short jw_add_job(jw_job_func_t func, void* data)
+int jw_add_job(jw_job_func_t func, void* data)
 {
     int status = 0;
     if(!func) abort();
@@ -231,7 +231,7 @@ short jw_add_job(jw_job_func_t func, void* data)
     return 0;
 }
 
-short jw_exit(short code)
+int jw_exit(int code)
 {
     jw_exit_called++;
 

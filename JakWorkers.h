@@ -32,20 +32,20 @@ typedef struct {
     unsigned char EXIT_WHEN_ALL_JOBS_COMPLETE;
 } jw_config_t;
 
-short jw_init(jw_config_t const config);
+extern int jw_init(jw_config_t const config);
 
 // thread pool main loop. 
-short jw_main();
+extern int jw_main();
 
 typedef void (*jw_job_func_t)(void*);
 
 // add a new job to the pool
 // The job should not arbitrarily block unless you want a beautiful
 // deadlock...
-short jw_add_job(jw_job_func_t, void* data);
+extern int jw_add_job(jw_job_func_t, void* data);
 
 // stop the pool thing and clean up resources
 // you should not call this unless you know what you're doing
-short jw_exit(short);
+extern int jw_exit(int);
 
 #endif

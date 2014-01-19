@@ -3,6 +3,8 @@ JakWorkers
 
 My very own thread pool implementation.
 
+This project lives on http://github.com/alzwded/JakWorkers
+
 Use cases
 =========
 
@@ -13,8 +15,8 @@ TODO
 
 The checkbox thing means it has one (or more) test case(s).
 
-* [ ] Data parallelization (e.g. create an array of 1M floats, compute the squares on 4 workers) -> EXIT_WHEN_ALL_JOBS_COMPLETE = 0
-* [ ] Performing separate tasks which don't inter-block themselves -> EXIT_WHEN_ALL_JOBS_COMPLETE = 1
+* [x] Data parallelization (e.g. create an array of 1M floats, compute the squares on 4 workers) -> EXIT_WHEN_ALL_JOBS_COMPLETE = 0
+* [x] Performing separate tasks which don't inter-block themselves -> EXIT_WHEN_ALL_JOBS_COMPLETE = 1
 * [ ] Continuation (TBD) (also, TODO)
 * [ ] Delayed execution (TBD) (also, TODO)
 
@@ -30,28 +32,57 @@ If you create jobs which inter-lock themselves on mutexes and expect the dispatc
 Caller
 ======
 
+There are a few ways to use JakWorkers:
+1. for a pre-defined amount of tasks
+2. as a background process, with exit on demand
+3. for a limitted amount of tasks, which is computed at run-time (not tested)
+
+For the first case, you need to do the following:
 ```C
-int sigReceived = 0;
-void SIGINT_handler(int signum) {
-    sigReceived++;
-}
-someFunc {
-    // ...
-    waitpit blabla...
-    while(sigReceived) {
-        sigReceived--;
-        struct job_t job = { &my_code, &my_data };
-        jw_add_job(job);
-    }
-    // ...
-}
-...
-jw_main(3);
+jw_config_t config = JW_CONFIG_INITIALIZER;
+config.EXIT_WHEN_ALL_JOBS_COMPLETE = 1;
+jw_init(config);
+jw_add_task(&my_task, &data[0]);
+jw_add_task(&my_task, &data[1]);
+jw_add_task(&my_task, &data[2]);
+jw_add_task(&my_task, &data[3]);
+jw_main();
+printf("All processing complete!\n");
 ```
+The my_task function and data are left as an excercise.
+
+For the background process case, you should do the following:
+```C
+void main_loop(void* data)
+{
+    while(!feof(stdin)) {
+        char c = getc();
+        switch(c) {
+        case 'q': jw_exit(0); break;
+        case '1': jw_add_task(&task1, NULL); break;
+        default: jw_add_task(&task2, &c); break;
+        }
+    }
+    jw_exit(0);
+}
+
+main() {
+    jw_config_t config = JW_CONFIG_INITIALIZER;
+    config.EXIT_WHEN_ALL_JOBS_COMPLETE = 0;
+    config.numWorkers = 3;
+    jw_init(config);
+    jw_add_task(&main_loop, NULL);
+    jw_main();
+    //...
+}
+```
+
+For the last case, you can essentially do the same as the first example, but this case implies that a task/job adds a new job to the job queue right before it finishes. Again, this is not tested. If you have tested it, feel free to write me a message.
 
 Callee
 ======
 
+Really easy to implement. For example:
 ```C
 void my_code(void* data) {
     int* datadata = (int*)data;
@@ -59,8 +90,19 @@ void my_code(void* data) {
 }
 ```
 
+Or you can do something more complicated (and not tested):
+```C
+void my_code(void* data) {
+    int* datadata = (int*)data;
+    do_stuff(data[0], &data[1]);
+    if(data[0]++ < 10) jw_add_task(&my_code, data);
+}
+```
+
 Framework
 =========
+
+TODO rewrite it to reflect current code
 
 ```C
 // the main job queue

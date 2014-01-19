@@ -3,7 +3,7 @@ COPTS = -c -fPIC -g
 LD = gcc
 LDOPTS = -shared -lpthread
 LIBNAME = libjw.so
-VERSION = 0.1
+VERSION = 1.0
 
 $(LIBNAME): jw.o
 	$(LD) -o $(LIBNAME) jw.o $(LDOPTS)

@@ -35,6 +35,7 @@ typedef struct {
 extern int jw_init(jw_config_t const config);
 
 // thread pool main loop. 
+// the return value is set with jw_exit
 extern int jw_main();
 
 typedef void (*jw_job_func_t)(void*);
@@ -42,6 +43,8 @@ typedef void (*jw_job_func_t)(void*);
 // add a new job to the pool
 // The job should not arbitrarily block unless you want a beautiful
 // deadlock...
+// Returns a non-zero value if the job could not be added because the
+// framework is currently shutting down (or it has already shut down)
 extern int jw_add_job(jw_job_func_t, void* data);
 
 // stop the pool thing and clean up resources

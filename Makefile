@@ -1,7 +1,7 @@
 CC = gcc
 COPTS = -c -fPIC -g
 LD = gcc
-LDOPTS = -shared -lpthread -lrt
+LDOPTS = -shared -lpthread
 LIBNAME = jw.so
 VERSION = 0.1
 

@@ -27,6 +27,7 @@
 #include <semaphore.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <stdio.h>
 
 // typedefs
 typedef struct {
@@ -193,7 +194,7 @@ short jw_add_job(jw_job_func_t func, void* data)
     if(!func) abort();
     status = pthread_mutex_lock(&jw_jobQueue_lock);
     if(status) {
-        pthread_perror("The JW framework is not running", status);
+        fprintf(stderr, "The JW framework is not running: %d\n", status);
         abort();
     }
     if(!jw_jobQueue) {

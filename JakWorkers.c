@@ -45,6 +45,7 @@ typedef struct {
     job_t* job;
     pthread_cond_t job_cond;
     pthread_mutex_t job_condMutex;
+    sig_atomic_t init;
 } worker_t;
 
 // module variables
@@ -74,24 +75,38 @@ static void* jw_worker(void* data)
     // lock immediately, because I don't want jw_main to give us work
     // before we're ready
     pthread_mutex_lock(&myJob->job_condMutex);
+    myJob->init++;
     for(;;) {
         // if I got nothing...
-        while(!myJob->job->func) {
+        while(!myJob->job->func && !jw_exit_called) {
+            struct timespec ts;
+            clock_gettime(CLOCK_REALTIME, &ts);
+            if(ts.tv_nsec + 5000000ul < ts.tv_nsec) {
+                ts.tv_nsec += 50000000ul;
+                ts.tv_sec++;
+            } else {
+                ts.tv_nsec += 50000000ul;
+            }
             // sleep
-            pthread_cond_wait(&myJob->job_cond, &myJob->job_condMutex);
+            pthread_cond_timedwait(&myJob->job_cond, &myJob->job_condMutex, &ts);
         }
         // I've received some work!
         pthread_mutex_unlock(&myJob->job_condMutex);
+        if(jw_exit_called) {
+            pthread_mutex_destroy(&myJob->job_condMutex);
+            pthread_cond_destroy(&myJob->job_cond);
+            pthread_exit(0);
+        }
 
         // I will do my job
         myJob->job->func(myJob->job->data);
-        // Now that I'm done, I can get forget about it. That's behind me
-        myJob->job->func = NULL;
-        myJob->job->data = NULL;
 
         // Lock my data because I don't want jw_main to give me work
         // before I'm ready to accept it
         pthread_mutex_lock(&myJob->job_condMutex);
+        // Now that I'm done, I can get forget about it. That's behind me
+        myJob->job->func = NULL;
+        myJob->job->data = NULL;
         // Notify jw_main that I'm ready to do more work
         sem_post(&jw_workersSem);
     }
@@ -123,14 +138,13 @@ static void jw_cleanup()
 
     // destroy workers
     for(i = 0; i < jw_config.numWorkers; ++i) {
-        pthread_cancel(jw_workers[i].tid);
+        pthread_join(jw_workers[i].tid, NULL);
         free(jw_workers[i].job);
-        pthread_mutex_destroy(&jw_workers[i].job_condMutex);
-        pthread_cond_destroy(&jw_workers[i].job_cond);
     }
     free(jw_workers);
 
     // clear remaining mutexes, cond variables and semaphores
+    pthread_mutex_unlock(&jw_jobQueue_lock);
     pthread_mutex_destroy(&jw_jobQueue_lock);
     pthread_cond_destroy(&jw_jobAdded);
 
@@ -242,12 +256,14 @@ int jw_init(jw_config_t const config)
         jw_workers[i].job = (job_t*)malloc(sizeof(job_t));
         jw_workers[i].job->func = NULL;
         jw_workers[i].job->data = NULL;
+        jw_workers[i].init = 0;
         pthread_mutex_init(&jw_workers[i].job_condMutex, NULL);
         pthread_cond_init(&jw_workers[i].job_cond, NULL);
         pthread_create(&jw_workers[i].tid,
                 NULL,
                 &jw_worker,
                 &jw_workers[i]);
+        while(!jw_workers[i].init) pthread_yield();
     }
 }
 

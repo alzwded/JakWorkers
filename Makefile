@@ -3,15 +3,16 @@ COPTS = -c -fPIC -g
 LD = gcc
 LDOPTS = -shared -lpthread
 LIBNAME = libjw.so
-VERSION = 1.0
+VERSION = 1.1
 
 $(LIBNAME): jw.o
 	$(LD) -o $(LIBNAME) jw.o $(LDOPTS)
 
 .PHONY: dist
 dist: $(LIBNAME) 
-	mkdir -p dist/lib/ dist/include/ dist/doc/
+	mkdir -p dist/lib/ dist/include/ dist/doc/ dist/src/
 	cp JakWorkers.h dist/include/
+	cp JakWorkers.c JakWorkers.h Makefile dist/src/
 	cp $(LIBNAME) dist/lib/
 	cp README.md LICENSE dist/doc/
 	tar cjvf jw-$(VERSION).tbz dist/

@@ -52,5 +52,6 @@ sleep 5
 echo terminating $lePid
 #kill -9 $lePid
 kill -USR1 $lePid
-sleep 1
+# wait a long while because tasks need to finish
+sleep 14
 pidof test_interactive.bin &&  echo "process stil exists?" || echo "exited correctly" 

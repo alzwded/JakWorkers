@@ -4,6 +4,7 @@
 #include "../JakWorkers.h"
 
 volatile sig_atomic_t sigRec = 0;
+volatile sig_atomic_t sigX = 0;
 
 void handle(int signum)
 {
@@ -22,7 +23,7 @@ void job(void* data)
 void loop(void* _not_used)
 {
     static int n = 0;
-    for(;;) {
+    for(;!sigX;) {
         if(sigRec > 0) {
             sigRec--;
             jw_add_job(&job, NULL);
@@ -34,6 +35,7 @@ void loop(void* _not_used)
 
 void hsigusr1(int signum)
 {
+    sigX++;
     jw_exit(0);
 }
 

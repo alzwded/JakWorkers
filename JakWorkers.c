@@ -79,24 +79,14 @@ static void* jw_worker(void* data)
     for(;;) {
         // if I got nothing...
         while(!myJob->job->func && !jw_exit_called) {
-            struct timespec ts;
-            clock_gettime(CLOCK_REALTIME, &ts);
-            if(ts.tv_nsec + 5000000ul < ts.tv_nsec) {
-                ts.tv_nsec += 50000000ul;
-                ts.tv_sec++;
-            } else {
-                ts.tv_nsec += 50000000ul;
-            }
-            // sleep
-            pthread_cond_timedwait(&myJob->job_cond, &myJob->job_condMutex, &ts);
+            pthread_cond_wait(&myJob->job_cond, &myJob->job_condMutex);
         }
         // I've received some work!
-        pthread_mutex_unlock(&myJob->job_condMutex);
         if(jw_exit_called) {
-            pthread_mutex_destroy(&myJob->job_condMutex);
-            pthread_cond_destroy(&myJob->job_cond);
+            pthread_mutex_unlock(&myJob->job_condMutex);
             pthread_exit(0);
         }
+        pthread_mutex_unlock(&myJob->job_condMutex);
 
         // I will do my job
         myJob->job->func(myJob->job->data);
@@ -136,9 +126,19 @@ static void jw_cleanup()
         q = nq;
     }
 
-    // destroy workers
+    // signal all workers they should end
     for(i = 0; i < jw_config.numWorkers; ++i) {
+        pthread_mutex_lock(&jw_workers[i].job_condMutex);
+        if(!jw_workers[i].job->func) {
+            pthread_cond_signal(&jw_workers[i].job_cond);
+        }
+        pthread_mutex_unlock(&jw_workers[i].job_condMutex);
+
         pthread_join(jw_workers[i].tid, NULL);
+
+        // destroy mutexes
+        pthread_mutex_destroy(&jw_workers[i].job_condMutex);
+        pthread_cond_destroy(&jw_workers[i].job_cond);
         free(jw_workers[i].job);
     }
     free(jw_workers);
@@ -220,15 +220,17 @@ int jw_main()
 
         // Find which worker is free
         for(i = 0; i < jw_config.numWorkers; ++i) {
+            // lock his data, I will not give him a task
+            pthread_mutex_lock(&jw_workers[i].job_condMutex);
             if(!jw_workers[i].job->func) {
-                // lock his data, I will not give him a task
-                pthread_mutex_lock(&jw_workers[i].job_condMutex);
+                // I will not give him a task
                 *jw_workers[i].job = job;
                 // tell it I'm done. It's free to do its thing now
                 pthread_cond_signal(&jw_workers[i].job_cond);
                 pthread_mutex_unlock(&jw_workers[i].job_condMutex);
                 break;
             }
+            pthread_mutex_unlock(&jw_workers[i].job_condMutex);
         }
     }
 
@@ -308,6 +310,7 @@ int jw_add_job(jw_job_func_t func, void* data)
 
 int jw_exit(int code)
 {
+    size_t i;
     // first phase of exit. This is meant to make jw_main aware we are now
     // in the process of bringing the system down
     jw_exit_called++;

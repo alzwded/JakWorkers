@@ -17,40 +17,40 @@ echo 1
 sleep 1 
 echo "beginning test"
 
-echo sending to $lePid
+echo nudging $lePid
 kill -INT $lePid
 sleep 4
-echo sending to $lePid
+echo nudging $lePid
 kill -INT $lePid
 sleep 1
-echo sending to $lePid
+echo nudging $lePid
 kill -INT $lePid
 sleep 1
-echo sending to $lePid
+echo nudging $lePid
 kill -INT $lePid
 sleep 1
 
-echo sending to $lePid
+echo nudging $lePid
 kill -INT $lePid
 sleep 1
-echo sending to $lePid
+echo nudging $lePid
 kill -INT $lePid
 sleep 3
-echo sending to $lePid
+echo nudging $lePid
 kill -INT $lePid
 sleep 5
-echo sending to $lePid
+echo nudging $lePid
 kill -INT $lePid
 sleep 1
 
 sleep 15
-echo sending to $lePid
+echo nudging $lePid
 kill -INT $lePid
-echo sending to $lePid
+echo nudging $lePid
 kill -INT $lePid
 sleep 5
+echo sending one final nudge to $lePid
 echo terminating $lePid
-#kill -9 $lePid
 kill -USR1 $lePid
 # wait a long while because tasks need to finish
 sleep 14

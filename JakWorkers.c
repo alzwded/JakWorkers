@@ -45,7 +45,7 @@ typedef struct {
     job_t* job;
     pthread_cond_t job_cond;
     pthread_mutex_t job_condMutex;
-    sig_atomic_t init;
+    volatile sig_atomic_t init;
 } worker_t;
 
 // module variables
@@ -63,7 +63,7 @@ static worker_t* jw_workers = NULL;
 static sem_t jw_workersSem;
 
 static jw_config_t jw_config;
-static sig_atomic_t jw_exit_called;
+static volatile sig_atomic_t jw_exit_called;
 static int jw_exit_code;
 
 // internal functions
@@ -75,7 +75,7 @@ static void* jw_worker(void* data)
     // lock immediately, because I don't want jw_main to give us work
     // before we're ready
     pthread_mutex_lock(&myJob->job_condMutex);
-    myJob->init++;
+    __sync_fetch_and_add(&myJob->init, 1);
     for(;;) {
         // if I got nothing...
         while(!myJob->job->func && !jw_exit_called) {
@@ -187,7 +187,7 @@ int jw_main()
                 if(value >= jw_config.numWorkers) {
                     pthread_mutex_unlock(&jw_jobQueue_lock);
                     jw_exit_code = 0;
-                    jw_exit_called = 2;
+                    __sync_fetch_and_or(&jw_exit_called, 0x2);
                     break;
                 // Oh no, there are still active jobs!
                 } else {
@@ -313,7 +313,7 @@ int jw_exit(int code)
     size_t i;
     // first phase of exit. This is meant to make jw_main aware we are now
     // in the process of bringing the system down
-    jw_exit_called++;
+    __sync_fetch_and_add(&jw_exit_called, 1);
 
     // set the return code
     jw_exit_code = code;
@@ -327,5 +327,5 @@ int jw_exit(int code)
     pthread_mutex_unlock(&jw_jobQueue_lock);
 
     // The exit procedure is finished. Tell jw_main it can clean up now
-    jw_exit_called++;
+    __sync_fetch_and_add(&jw_exit_called, 1);
 }
